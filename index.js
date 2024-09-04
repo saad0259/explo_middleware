@@ -43,59 +43,12 @@ app.get("/", (req, res) => {
   );
 });
 
-// app.use("/api/v1/users", (req, res, next) => {
-//   req.admin = admin;
-//   req.db = db;
-//   next();
-// });
-
-// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-// function attachConnectionPool(req, res, next) {
-//   req.pool = pool;
-// }
-
-// app.use(/\/api\/v1\/(users)/, attachConnectionPool);
-
-// const multer = require("multer");
-// const multerStorage = multer.memoryStorage();
-// const upload = multer({ storage: multerStorage });
-
-// function attachStripe(req, res, next) {
-//   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-//   req.stripe = stripe;
-//   next();
-// }
-
-// function attachAdminAndDb(req, res, next) {
-//   // req.admin = admin;
-//   // req.db = db;
-//   // next();
-// }
-
-// app.use(/\/api\/v1\/(admins|users|auth|payments)/, attachAdminAndDb);
-// app.use(/\/api\/v1\/(payments)/, attachStripe);
-
-// app.use("/api/v1/auth", authRouter);
-// app.use("/api/v1/records", upload.single("file"), recordsRouter);
-// app.use("/api/v1/offers", offersRouter);
-// app.use("/api/v1/users", usersRouter);
-// app.use("/api/v1/admins/logs", adminLogsRouter);
-// app.use("/api/v1/admins", adminRouter);
-// app.use("/api/v1/payments", paymentsRouter);
-
 app.use("/api/v1/places", placesRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
 
-const port = process.env.PORT || 5500;
-
-// const options = {
-//   key: fs.readFileSync("./certs/5_9_88_108.key"),
-//   cert: fs.readFileSync("./certs/5_9_88_108.pem"),
-//   ca: fs.readFileSync("./certs/5_9_88_108.pem"),
-// };
+const port = process.env.PORT || 5506;
 
 const start = async () => {
   try {

@@ -5,11 +5,13 @@ const redis = require("redis");
 
 const redisClient = redis.createClient({
   socket: {
-    host: "localhost", // Replace with your Redis server host
-    port: 6379, // Replace with your Redis server port
+    host: process.env.REDIS_HOST, // Replace with your Redis server host
+
+    port: process.env.REDIS_PORT, // Replace with your Redis server port
     reconnectStrategy: (retries) => Math.min(retries * 50, 500),
     connectTimeout: 10000, // Increase connection timeout to 10 seconds
   },
+  password: process.env.REDIS_PASSWORD,
 });
 
 redisClient.on("error", (err) => console.error("Redis Client Error", err));
