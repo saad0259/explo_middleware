@@ -99,6 +99,6 @@ async function getOrSetCache(key, cb) {
   console.log("Cache miss");
 
   const freshData = await cb();
-  redisClient.setEx(key, 3600, JSON.stringify(freshData));
+  redisClient.setEx(key, 86400, JSON.stringify(freshData));
   return freshData;
 }
