@@ -3,22 +3,23 @@ const { BadRequestError, NotFoundError } = require("../errors");
 const mssql = require("mssql");
 const redis = require("redis");
 
-const redisClient = redis.createClient({
-  socket: {
-    host: process.env.REDIS_HOST, // Replace with your Redis server host
+// const redisClient = redis.createClient({
+//   socket: {
+//     host: process.env.REDIS_HOST, // Replace with your Redis server host
 
-    port: process.env.REDIS_PORT, // Replace with your Redis server port
-    reconnectStrategy: (retries) => Math.min(retries * 50, 500),
-    connectTimeout: 10000, // Increase connection timeout to 10 seconds
-  },
-  password: process.env.REDIS_PASSWORD,
-});
+//     port: process.env.REDIS_PORT, // Replace with your Redis server port
+//     reconnectStrategy: (retries) => Math.min(retries * 50, 500),
+//     connectTimeout: 10000, // Increase connection timeout to 10 seconds
+//   },
+//   password: process.env.REDIS_PASSWORD,
+// });
 
-redisClient.on("error", (err) => console.error("Redis Client Error", err));
-redisClient.connect().catch(console.error);
+// redisClient.on("error", (err) => console.error("Redis Client Error", err));
+// redisClient.connect().catch(console.error);
 
 const pool = require("../db/connection");
 
+const minPlacesTable = "min_places";
 const placesTable = "places";
 
 const getPlacesByRadius = async (req, res) => {
@@ -38,7 +39,7 @@ const getPlacesByRadius = async (req, res) => {
       cos(radians(@lat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(@lon)) + 
       sin(radians(@lat)) * sin(radians(latitude))
     )) AS distance
-    FROM ${placesTable}
+    FROM ${minPlacesTable}
     WHERE (6371 * acos(
       cos(radians(@lat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(@lon)) + 
       sin(radians(@lat)) * sin(radians(latitude))
@@ -72,7 +73,7 @@ const getPlaces = async (req, res) => {
     const request = poolResult.request();
 
     const query = `
-      SELECT * FROM ${placesTable}
+      SELECT * FROM ${minPlacesTable}
       ORDER BY id
       OFFSET @offset ROWS
       FETCH NEXT @limit ROWS ONLY;
@@ -88,17 +89,36 @@ const getPlaces = async (req, res) => {
   res.status(StatusCodes.OK).json({ places: result });
 };
 
-module.exports = { getPlacesByRadius, getPlaces };
+const getPlaceById = async (req, res) => {
+  const { id } = req.params;
+
+  const poolResult = await pool;
+
+  const request = poolResult.request();
+
+  const query = `SELECT * FROM ${placesTable} WHERE id = @id;`;
+
+  request.input("id", mssql.Int, id);
+
+  const result = await request.query(query);
+
+  if (!result.recordset.length) {
+    throw new NotFoundError(`Place with ID ${id} not found`);
+  }
+
+  res.status(StatusCodes.OK).json({ place: result.recordset[0] });
+};
+
+module.exports = { getPlacesByRadius, getPlaces, getPlaceById };
 
 async function getOrSetCache(key, cb) {
-  const response = await redisClient.get(key);
-  if (response) {
-    console.log("Cache hit");
-    return JSON.parse(response);
-  }
-  console.log("Cache miss");
-
+  // const response = await redisClient.get(key);
+  // if (response) {
+  //   console.log("Cache hit");
+  //   return JSON.parse(response);
+  // }
+  // console.log("Cache miss");
   const freshData = await cb();
-  redisClient.setEx(key, 864000, JSON.stringify(freshData));
+  // redisClient.setEx(key, 864000, JSON.stringify(freshData));
   return freshData;
 }
