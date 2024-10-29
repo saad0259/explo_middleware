@@ -53,11 +53,12 @@ const getPlacesByRadius = async (req, res) => {
 
   const result = await request.query(query);
 
-  if (!result.recordset.length) {
-    throw new NotFoundError("No places found");
-  } else {
-    console.log(result.recordset.length, "places found");
-  }
+  // if (!result.recordset.length) {
+
+  //   throw new NotFoundError("No places found");
+  // } else {
+  //   console.log(result.recordset.length, "places found");
+  // }
 
   res.status(StatusCodes.OK).json({ places: result.recordset });
 };
