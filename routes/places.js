@@ -6,9 +6,10 @@ const {
   getPlaces,
   getPlaceById,
 } = require("../controllers/places");
+const { addPlaces } = require("../controllers/create_places");
 
 router.route("/radius").get(getPlacesByRadius);
-router.route("/").get(getPlaces);
+router.route("/").get(getPlaces).post(addPlaces);
 router.route("/:id").get(getPlaceById);
 
 module.exports = router;
