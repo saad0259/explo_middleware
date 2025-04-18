@@ -39,6 +39,9 @@ const REQUIRED_COLUMNS = [
 ];
 const OPTIONAL_COLUMNS = ["Web", "Phone"]; // Can be null
 
+// Batch size for chunked inserts
+const BATCH_SIZE = 50;
+
 // ✅ Function to validate CSV structure
 const validateCSVStructure = (headers) => {
   const cleanedHeaders = headers.map((col) =>
@@ -82,6 +85,8 @@ const normalizeKeys = (row) => {
   }
   return newRow;
 };
+
+// 🔧 Bulk insert into places table
 const insertBulkIntoPlaces = async (pool, records) => {
   if (!records.length) return;
 
@@ -312,16 +317,16 @@ const normalizeRowForSQL = (row) => {
   }
   return newRow;
 };
+
 const addPlaces = async (req, res) => {
   if (!req.file) throw new BadRequestError("Please upload a CSV file.");
 
   const results = [];
   const overrides = [];
   const fails = [];
+  let responseSent = false;
   const bufferStream = new stream.PassThrough();
   bufferStream.end(req.file.buffer);
-
-  let responseSent = false;
 
   const poolResult = await pool;
   const existingCodes = await getExistingCodes(poolResult);
@@ -357,9 +362,12 @@ const addPlaces = async (req, res) => {
     .on("end", async () => {
       if (responseSent) return;
       try {
-        const poolResult = await pool;
-        await insertBulkIntoPlaces(poolResult, results);
-        await insertBulkIntoMinPlaces(poolResult, results);
+        // Write in batches of 50
+        for (let i = 0; i < results.length; i += BATCH_SIZE) {
+          const batch = results.slice(i, i + BATCH_SIZE);
+          await insertBulkIntoPlaces(poolResult, batch);
+          await insertBulkIntoMinPlaces(poolResult, batch);
+        }
 
         res.status(201).json({
           message: "CSV data processed",
