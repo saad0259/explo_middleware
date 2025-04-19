@@ -4,12 +4,12 @@ const router = express.Router();
 const {
   getPlacesByRadius,
   getPlaces,
-  getPlaceById,
+  getPlaceByCode,
 } = require("../controllers/places");
 const { addPlaces } = require("../controllers/create_places");
 
 router.route("/radius").get(getPlacesByRadius);
 router.route("/").get(getPlaces).post(addPlaces);
-router.route("/:id").get(getPlaceById);
+router.route("/:code").get(getPlaceByCode);
 
 module.exports = router;

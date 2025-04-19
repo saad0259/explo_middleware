@@ -38,13 +38,15 @@ const getPlacesByRadius = async (req, res) => {
   const query = `
     SELECT *, 
     (6371 * acos(
-      cos(radians(@lat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(@lon)) + 
-      sin(radians(@lat)) * sin(radians(latitude))
+      cos(radians(@lat)) * cos(radians(SUBSTRING(coordinates, 0, CHARINDEX(',', coordinates)))) * 
+      cos(radians(SUBSTRING(coordinates, CHARINDEX(',', coordinates) + 1, LEN(coordinates))) - radians(@lon)) + 
+      sin(radians(@lat)) * sin(radians(SUBSTRING(coordinates, 0, CHARINDEX(',', coordinates))))
     )) AS distance
     FROM ${minPlacesTable}
     WHERE (6371 * acos(
-      cos(radians(@lat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(@lon)) + 
-      sin(radians(@lat)) * sin(radians(latitude))
+      cos(radians(@lat)) * cos(radians(SUBSTRING(coordinates, 0, CHARINDEX(',', coordinates)))) * 
+      cos(radians(SUBSTRING(coordinates, CHARINDEX(',', coordinates) + 1, LEN(coordinates))) - radians(@lon)) + 
+      sin(radians(@lat)) * sin(radians(SUBSTRING(coordinates, 0, CHARINDEX(',', coordinates))))
     )) < @radius
     ORDER BY distance;
   `;
@@ -54,13 +56,6 @@ const getPlacesByRadius = async (req, res) => {
   request.input("radius", mssql.Float, radius);
 
   const result = await request.query(query);
-
-  // if (!result.recordset.length) {
-
-  //   throw new NotFoundError("No places found");
-  // } else {
-  //   console.log(result.recordset.length, "places found");
-  // }
 
   res.status(StatusCodes.OK).json({ places: result.recordset });
 };
@@ -92,27 +87,27 @@ const getPlaces = async (req, res) => {
   res.status(StatusCodes.OK).json({ places: result });
 };
 
-const getPlaceById = async (req, res) => {
-  const { id } = req.params;
+const getPlaceByCode = async (req, res) => {
+  const { code } = req.params;
 
   const poolResult = await pool;
 
   const request = poolResult.request();
 
-  const query = `SELECT * FROM ${placesTable} WHERE id = @id;`;
+  const query = `SELECT * FROM ${placesTable} WHERE CODE = @code;`;
 
-  request.input("id", mssql.Int, id);
+  request.input("code", mssql.VarChar, code);
 
   const result = await request.query(query);
 
   if (!result.recordset.length) {
-    throw new NotFoundError(`Place with ID ${id} not found`);
+    throw new NotFoundError(`Place with Code ${code} not found`);
   }
 
   res.status(StatusCodes.OK).json({ place: result.recordset[0] });
 };
 
-module.exports = { getPlacesByRadius, getPlaces, getPlaceById };
+module.exports = { getPlacesByRadius, getPlaces, getPlaceByCode };
 
 async function getOrSetCache(key, cb) {
   // const response = await redisClient.get(key);
