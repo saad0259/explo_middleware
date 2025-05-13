@@ -226,7 +226,7 @@ const insertBulkIntoMinPlaces = async (pool, records) => {
 
   const request = pool.request();
 
-  // Declare table variable
+  // Declare table variable with Web and Phone
   let query = `
     DECLARE @Temp_MinPlaces TABLE (
       CODE NVARCHAR(50) NOT NULL PRIMARY KEY,
@@ -236,7 +236,9 @@ const insertBulkIntoMinPlaces = async (pool, records) => {
       Coordinates NVARCHAR(50) NOT NULL,
       Tag NVARCHAR(50) NOT NULL,
       IMAGE NVARCHAR(MAX) NOT NULL,
-      Level TINYINT NOT NULL
+      Level TINYINT NOT NULL,
+      Web NVARCHAR(MAX) NULL,
+      Phone NVARCHAR(MAX) NULL
     );
   `;
 
@@ -245,11 +247,10 @@ const insertBulkIntoMinPlaces = async (pool, records) => {
     const row = records[i];
 
     query += `
-      INSERT INTO @Temp_MinPlaces (CODE, Name, Province, Country, Coordinates, Tag, IMAGE, Level) 
-      VALUES (@CODE${i}, @Name${i}, @Province${i}, @Country${i}, @Coordinates${i}, @Tag${i}, @IMAGE${i}, @Level${i});
+      INSERT INTO @Temp_MinPlaces (CODE, Name, Province, Country, Coordinates, Tag, IMAGE, Level, Web, Phone) 
+      VALUES (@CODE${i}, @Name${i}, @Province${i}, @Country${i}, @Coordinates${i}, @Tag${i}, @IMAGE${i}, @Level${i}, @Web${i}, @Phone${i});
     `;
 
-    // Add parameters to prevent SQL injection and ensure safe data handling
     request.input(`CODE${i}`, row.CODE);
     request.input(`Name${i}`, row.Name);
     request.input(`Province${i}`, row.Province);
@@ -258,6 +259,8 @@ const insertBulkIntoMinPlaces = async (pool, records) => {
     request.input(`Tag${i}`, row.Tag);
     request.input(`IMAGE${i}`, row.IMAGE);
     request.input(`Level${i}`, row.Level ? parseInt(row.Level, 10) || 0 : 0);
+    request.input(`Web${i}`, row.Web || null);
+    request.input(`Phone${i}`, row.Phone || null);
   }
 
   // MERGE statement to update or insert data
@@ -273,10 +276,12 @@ const insertBulkIntoMinPlaces = async (pool, records) => {
         target.Coordinates = source.Coordinates,
         target.Tag = source.Tag,
         target.IMAGE = source.IMAGE,
-        target.Level = source.Level
+        target.Level = source.Level,
+        target.Web = source.Web,
+        target.Phone = source.Phone
     WHEN NOT MATCHED THEN 
-      INSERT (CODE, Name, Province, Country, Coordinates, Tag, IMAGE, Level)
-      VALUES (source.CODE, source.Name, source.Province, source.Country, source.Coordinates, source.Tag, source.IMAGE, source.Level);
+      INSERT (CODE, Name, Province, Country, Coordinates, Tag, IMAGE, Level, Web, Phone)
+      VALUES (source.CODE, source.Name, source.Province, source.Country, source.Coordinates, source.Tag, source.IMAGE, source.Level, source.Web, source.Phone);
   `;
 
   // Execute Query
