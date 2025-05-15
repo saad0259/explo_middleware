@@ -61,9 +61,13 @@ const getPlacesByRadius = async (req, res) => {
 };
 
 const getPlaces = async (req, res) => {
-  const { limit, offset } = req.query;
+  let { limit, offset, isAdmin } = req.query;
 
-  const key = `places:${limit}:${offset}`;
+  // Default isAdmin to false
+  isAdmin = isAdmin === "true";
+
+  const table = isAdmin ? placesTable : minPlacesTable;
+  const key = `places:${table}:${limit}:${offset}`;
 
   const result = await getOrSetCache(key, async () => {
     const poolResult = await pool;
@@ -71,8 +75,8 @@ const getPlaces = async (req, res) => {
     const request = poolResult.request();
 
     const query = `
-      SELECT * FROM ${minPlacesTable}
-      ORDER BY id
+      SELECT * FROM ${table}
+      ORDER BY id DESC
       OFFSET @offset ROWS
       FETCH NEXT @limit ROWS ONLY;
     `;
@@ -107,7 +111,48 @@ const getPlaceByCode = async (req, res) => {
   res.status(StatusCodes.OK).json({ place: result.recordset[0] });
 };
 
-module.exports = { getPlacesByRadius, getPlaces, getPlaceByCode };
+const deletePlace = async (req, res) => {
+  const { code } = req.params;
+
+  const poolResult = await pool;
+  const request = poolResult.request();
+
+  // Delete from both tables in a transaction
+  const transaction = new mssql.Transaction(poolResult);
+
+  try {
+    await transaction.begin();
+
+    const placesRequest = new mssql.Request(transaction);
+    placesRequest.input("code", mssql.VarChar, code);
+
+    const deletePlacesQuery = `DELETE FROM ${placesTable} WHERE CODE = @code;`;
+    const deleteMinPlacesQuery = `DELETE FROM ${minPlacesTable} WHERE CODE = @code;`;
+
+    const placesResult = await placesRequest.query(deletePlacesQuery);
+    const minPlacesResult = await placesRequest.query(deleteMinPlacesQuery);
+
+    if (
+      placesResult.rowsAffected[0] === 0 &&
+      minPlacesResult.rowsAffected[0] === 0
+    ) {
+      await transaction.rollback();
+      throw new NotFoundError(`Place with Code ${code} not found`);
+    }
+
+    await transaction.commit();
+
+    res.status(StatusCodes.OK).json({ msg: "Place deleted successfully" });
+  } catch (err) {
+    await transaction.rollback();
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      msg: "Error deleting place",
+      error: err.message,
+    });
+  }
+};
+
+module.exports = { getPlacesByRadius, getPlaces, getPlaceByCode, deletePlace };
 
 async function getOrSetCache(key, cb) {
   // const response = await redisClient.get(key);
